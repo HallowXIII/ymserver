@@ -34,7 +34,7 @@ defmodule Ymserver.YmProtocol do
               "quit" -> "Quitting"
               _ -> "Unknown command"
             end
-    transport.send(socket, rmess)
+    transport.send(socket, rmess <> "\r\n")
     {:noreply, state}
   end
 
