@@ -24,3 +24,6 @@ ymserver-*.tar
 
 # Vim backups
 *~
+
+# Elixir LS directory
+.elixir_ls
