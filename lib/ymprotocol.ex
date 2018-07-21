@@ -36,7 +36,12 @@ defmodule Ymserver.YmProtocol do
                 _ -> "Unknown command"
               end
       transport.send(socket, rmess <> "\r\n")
-      {:noreply, Map.put(state, :buf, "")}
+      if rmess == "Quitting" do
+        transport.close(socket)
+        {:stop, :normal, state}
+      else
+        {:noreply, Map.put(state, :buf, "")}
+      end
   end
 
   @doc """
