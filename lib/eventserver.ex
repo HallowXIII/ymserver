@@ -6,9 +6,10 @@ defmodule Ymserver.EventServer do
   end
 
   def handle_call(:exits, _, gs) do
-    r = gs.exits |> Map.keys |>
-      (fn(x) -> Enum.map(x,fn (y) -> Atom.to_string(y) end) end).() |>
-      (fn(x) -> Enum.join(x, " ") end).()
+    r = gs.exits
+      |> Map.keys
+      |> Enum.map(fn (y) -> Atom.to_string(y) end)
+      |> Enum.join(" ")
     {:reply, r, gs}
   end
 
@@ -17,7 +18,7 @@ defmodule Ymserver.EventServer do
   end
 
   def handle_call(cmd, _, gs) do
-    next = Map.get(gs.exits, cmd, nil)
+    next = GenServer.call({:global, :global_state}, Map.get(gs.exits, cmd, nil))
     if next do
       {:reply, "Ok", next}
     else
