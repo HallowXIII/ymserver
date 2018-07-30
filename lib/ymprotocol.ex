@@ -13,18 +13,16 @@ defmodule Ymserver.YmProtocol do
   end
 
   def init(ref, socket, transport) do
-    IO.puts "Starting protocol"
-
     :ok = :ranch.accept_ack(ref)
     :ok = transport.setopts(socket, [{:active, true}])
     {:ok, eserv} = GenServer.start_link(Ymserver.EventServer,
       Ymserver.TestGame.begin())
-    :gen_server.enter_loop(__MODULE__, [], %{socket: socket, transport: transport, eserv: eserv, buf: ""})
+    :gen_server.enter_loop(__MODULE__, [],
+      %{socket: socket, transport: transport, eserv: eserv, buf: ""})
   end
 
-  def handle_event(state = %{socket: socket, transport: transport,
+  def handle_cmd(state = %{socket: socket, transport: transport,
     eserv: eserv, buf: buf}) do
-      IO.inspect buf
       rmess = case buf do
                 "describe" -> GenServer.call(eserv, :describe)
                 "exits" -> GenServer.call(eserv, :exits)
@@ -36,7 +34,12 @@ defmodule Ymserver.YmProtocol do
                 _ -> "Unknown command"
               end
       transport.send(socket, rmess <> "\r\n")
-      {:noreply, Map.put(state, :buf, "")}
+      if rmess == "Quitting" do
+        transport.close(socket)
+        {:stop, :normal, state}
+      else
+        {:noreply, Map.put(state, :buf, "")}
+      end
   end
 
   @doc """
@@ -45,7 +48,7 @@ defmodule Ymserver.YmProtocol do
   def handle_info({:tcp, socket, data}, state = %{socket: socket, buf: buf}) do
     cond do
       String.match?(data, ~r/.*\r\n/) ->
-        handle_event(Map.put(state, :buf, buf <> String.trim(data)))
+        handle_cmd(Map.put(state, :buf, buf <> String.trim(data)))
       data == "\b" ->
         {:noreply, Map.put(state, :buf, String.slice(buf, 0..-2))}
       true ->
@@ -54,7 +57,6 @@ defmodule Ymserver.YmProtocol do
   end
 
   def handle_info({:tcp_closed, socket}, state = %{socket: socket, transport: transport}) do
-    IO.puts "Closing"
     transport.close(socket)
     {:stop, :normal, state}
   end
